@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Attendance Tracker</title>
+		<meta name="theme-color" content="#4a90e2" />
+		<link rel="manifest" href="manifest.json" />
+		<link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+		<!-- External Stylesheet -->
+		<link rel="stylesheet" href="style.css" />
+
+		<!-- Tailwind CSS and Fonts -->
+		<script src="https://cdn.tailwindcss.com"></script>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body class="bg-gray-100 text-gray-800">
+		<!-- Main Container -->
+		<div id="app" class="max-w-4xl mx-auto">
+			<!-- Header -->
+			<header
+				class="bg-white shadow-md rounded-b-lg p-4 flex justify-between items-center sticky top-0 z-10"
+			>
+				<h1 class="text-2xl font-bold text-gray-700">
+					Attendance Tracker
+				</h1>
+				<div id="user-info" class="hidden items-center">
+					<img
+						id="user-photo"
+						class="w-10 h-10 rounded-full mr-3"
+						alt="User Photo"
+					/>
+					<button
+						id="logout-btn"
+						class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-transform transform hover:scale-105"
+					>
+						Logout
+					</button>
+				</div>
+			</header>
+
+			<main class="p-4 md:p-6">
+				<!-- Login View -->
+				<div
+					id="login-view"
+					class="view active text-center p-8 bg-white rounded-lg shadow-lg"
+				>
+					<h2 class="text-3xl font-bold mb-4">Welcome!</h2>
+					<p class="text-gray-600 mb-8">
+						Sign in with your Google account to track your
+						attendance.
+					</p>
+					<button
+						id="login-btn"
+						class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full inline-flex items-center shadow-lg transform hover:scale-105 transition-transform"
+					>
+						<svg
+							class="w-6 h-6 mr-3"
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 48 48"
+						>
+							<path
+								fill="#FFC107"
+								d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+							></path>
+							<path
+								fill="#FF3D00"
+								d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+							></path>
+							<path
+								fill="#4CAF50"
+								d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+							></path>
+							<path
+								fill="#1976D2"
+								d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,36.213,44,30.605,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+							></path>
+						</svg>
+						<span>Sign in with Google</span>
+					</button>
+				</div>
+
+				<!-- Loader View -->
+				<div
+					id="loader-view"
+					class="view flex justify-center items-center p-8"
+				>
+					<div class="loader"></div>
+				</div>
+
+				<!-- Semester Setup View -->
+				<div
+					id="setup-view"
+					class="view p-6 bg-white rounded-lg shadow-lg"
+				>
+					<h2 class="text-2xl font-bold mb-4">Semester Setup</h2>
+					<p class="text-gray-600 mb-6">
+						Let's set up your semester. You only need to do this
+						once.
+					</p>
+					<form id="setup-form">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+							<div>
+								<label
+									for="start-date"
+									class="block text-sm font-medium text-gray-700"
+									>Start Date</label
+								>
+								<input
+									type="date"
+									id="start-date"
+									required
+									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+								/>
+							</div>
+							<div>
+								<label
+									for="end-date"
+									class="block text-sm font-medium text-gray-700"
+									>End Date</label
+								>
+								<input
+									type="date"
+									id="end-date"
+									required
+									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+								/>
+							</div>
+						</div>
+						<div class="mb-4">
+							<label
+								for="subjects"
+								class="block text-sm font-medium text-gray-700"
+								>Subjects (comma separated)</label
+							>
+							<input
+								type="text"
+								id="subjects"
+								placeholder="e.g., Physics, Maths, Chemistry"
+								required
+								class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+							/>
+						</div>
+						<div class="mb-6 p-4 border border-dashed rounded-lg">
+							<h3 class="text-lg font-semibold mb-2">
+								Weekly Schedule
+							</h3>
+							<p class="text-sm text-gray-500 mb-4">
+								Set your default number of lectures per subject
+								for each day.
+							</p>
+							<div id="schedule-container" class="space-y-4">
+								<!-- JS will populate this -->
+							</div>
+						</div>
+						<button
+							type="submit"
+							class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105"
+						>
+							Save Semester
+						</button>
+					</form>
+				</div>
+
+				<!-- Dashboard View -->
+				<div id="dashboard-view" class="view space-y-6">
+					<div class="p-6 bg-white rounded-lg shadow-lg">
+						<div class="flex justify-between items-center mb-4">
+							<h2
+								class="text-2xl font-bold"
+								id="semester-name"
+							></h2>
+							<button
+								id="edit-semester-btn"
+								class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg"
+							>
+								Edit
+							</button>
+						</div>
+
+						<!-- Overall Stats -->
+						<div
+							class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center"
+						>
+							<div class="bg-blue-100 p-4 rounded-lg">
+								<p class="text-sm text-blue-800 font-semibold">
+									Overall Attendance
+								</p>
+								<p
+									class="text-3xl font-bold text-blue-900"
+									id="overall-attendance-percent"
+								>
+									--%
+								</p>
+							</div>
+							<div class="bg-green-100 p-4 rounded-lg">
+								<p class="text-sm text-green-800 font-semibold">
+									Safe Bunks Left (Semester)
+								</p>
+								<p
+									class="text-3xl font-bold text-green-900"
+									id="semester-bunks-left"
+								>
+									--
+								</p>
+							</div>
+							<div class="bg-yellow-100 p-4 rounded-lg">
+								<p
+									class="text-sm text-yellow-800 font-semibold"
+								>
+									Monthly Bunks Left
+								</p>
+								<p
+									class="text-3xl font-bold text-yellow-900"
+									id="monthly-bunks-left"
+								>
+									--
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Subject-wise stats -->
+					<div class="p-6 bg-white rounded-lg shadow-lg">
+						<h3 class="text-xl font-bold mb-4">
+							Subject-wise Performance
+						</h3>
+						<div id="subject-stats-container" class="space-y-4">
+							<!-- JS will populate this -->
+						</div>
+					</div>
+
+					<!-- Today's Attendance -->
+					<div class="p-6 bg-white rounded-lg shadow-lg">
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-xl font-bold">
+								Today's Lectures (<span id="today-date"></span>)
+							</h3>
+							<button
+								id="mark-day-leave-btn"
+								class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg text-sm shadow"
+							>
+								Mark Day as Leave
+							</button>
+						</div>
+						<div id="today-lectures-container" class="space-y-3">
+							<!-- JS will populate this -->
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<!-- Modal for confirmation -->
+		<div
+			id="confirmation-modal"
+			class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden"
+		>
+			<div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-sm">
+				<h3 class="text-lg font-bold mb-4" id="modal-title">
+					Confirm Action
+				</h3>
+				<p class="text-gray-600 mb-6" id="modal-message">
+					Are you sure?
+				</p>
+				<div class="flex justify-end space-x-4">
+					<button
+						id="modal-cancel-btn"
+						class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg"
+					>
+						Cancel
+					</button>
+					<button
+						id="modal-confirm-btn"
+						class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg"
+					>
+						Confirm
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- External JavaScript -->
+		<script src="script.js" type="module" defer></script>
+	</body>
+</html>
