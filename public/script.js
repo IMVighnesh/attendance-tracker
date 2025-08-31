@@ -1,26 +1,6 @@
 // --- IMPORTS ---
-// Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import {
-	getAuth,
-	GoogleAuthProvider,
-	signInWithPopup,
-	signOut,
-	onAuthStateChanged,
-	setPersistence,
-	browserLocalPersistence,
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import {
-	getFirestore,
-	doc,
-	getDoc,
-	setDoc,
-	onSnapshot,
-	updateDoc,
-	deleteField,
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// date-fns for easy date manipulation
+// We no longer import Firebase here; it's loaded globally from index.html.
+// We only import third-party libraries like date-fns.
 import {
 	format,
 	parseISO,
@@ -38,28 +18,20 @@ import {
 	isAfter,
 } from "https://cdn.jsdelivr.net/npm/date-fns@2.29.3/esm/index.js";
 
-// --- PRE-DEFINED VARIABLES (DO NOT MODIFY) ---
-const firebaseConfig = {
-	apiKey: "AIzaSyAODkLttfUkwSSUik7efk83oXjF4KwBf5Q",
-	authDomain: "attendance-tracker-basic.firebaseapp.com",
-	projectId: "attendance-tracker-basic",
-	storageBucket: "attendance-tracker-basic.firebasestorage.app",
-	messagingSenderId: "125047065286",
-	appId: "1:125047065286:web:2229dff632da9aa97de5c7",
-	measurementId: "G-69W05QJW81",
-};
-const appId =
-	typeof __app_id !== "undefined" ? __app_id : "default-attendance-app";
-
 // --- FIREBASE INITIALIZATION ---
-let app, auth, db;
+// The firebase object is now available globally thanks to the scripts in index.html.
+// The app is initialized automatically by /__/firebase/init.js.
+// We just need to get references to the services.
+let auth, db;
 try {
-	app = initializeApp(firebaseConfig);
-	auth = getAuth(app);
-	db = getFirestore(app);
-	setPersistence(auth, browserLocalPersistence);
+	auth = firebase.auth();
+	db = firebase.firestore();
+	auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 } catch (error) {
 	console.error("Firebase initialization failed:", error);
+	// Hide loader and show an error message if Firebase fails to init
+	document.getElementById("loader-view").innerHTML =
+		'<p class="text-red-500">Error: Could not connect to services.</p>';
 }
 
 // --- GLOBAL STATE ---
@@ -80,6 +52,8 @@ const daysOfWeek = [
 	"Friday",
 	"Saturday",
 ];
+const appId =
+	typeof __app_id__ !== "undefined" ? __app_id__ : "default-attendance-app";
 
 // --- DOM ELEMENTS ---
 const loginBtn = document.getElementById("login-btn");
@@ -93,6 +67,7 @@ const holidayBtn = document.getElementById("holiday-btn");
 const datePicker = document.getElementById("date-picker");
 const prevDayBtn = document.getElementById("prev-day-btn");
 const nextDayBtn = document.getElementById("next-day-btn");
+const editDayScheduleBtn = document.getElementById("edit-day-schedule-btn");
 
 // --- UI VIEW MANAGEMENT ---
 const views = document.querySelectorAll(".view");
@@ -102,9 +77,10 @@ function showView(viewId) {
 }
 
 // --- AUTHENTICATION LOGIC ---
-const provider = new GoogleAuthProvider();
+// Use the v8 compat syntax
+const provider = new firebase.auth.GoogleAuthProvider();
 loginBtn.addEventListener("click", () => {
-	signInWithPopup(auth, provider).catch((error) =>
+	auth.signInWithPopup(provider).catch((error) =>
 		console.error("Login failed:", error)
 	);
 });
@@ -112,10 +88,10 @@ loginBtn.addEventListener("click", () => {
 logoutBtn.addEventListener("click", () => {
 	if (unsubscribeSemester) unsubscribeSemester();
 	if (unsubscribeAttendance) unsubscribeAttendance();
-	signOut(auth).catch((error) => console.error("Logout failed:", error));
+	auth.signOut().catch((error) => console.error("Logout failed:", error));
 });
 
-onAuthStateChanged(auth, (user) => {
+auth.onAuthStateChanged((user) => {
 	if (user) {
 		currentUser = user;
 		userInfo.classList.remove("hidden");
@@ -153,18 +129,26 @@ holidayBtn.addEventListener("click", async () => {
 	const dateStr = format(selectedDate, "yyyy-MM-dd");
 	const isHoliday = attendanceData.holidays?.[dateStr] === true;
 	const fieldPath = `holidays.${dateStr}`;
+	const overridePath = `overrides.${dateStr}`;
 
 	try {
+		const updateData = {};
 		if (isHoliday) {
 			// Unmark as holiday by deleting the field
-			await updateDoc(attendanceDocRef, { [fieldPath]: deleteField() });
+			updateData[fieldPath] = firebase.firestore.FieldValue.delete();
 		} else {
-			// Mark as holiday
-			await updateDoc(attendanceDocRef, { [fieldPath]: true });
+			// Mark as holiday and remove any schedule override for that day
+			updateData[fieldPath] = true;
+			updateData[overridePath] = firebase.firestore.FieldValue.delete();
 		}
+		await attendanceDocRef.update(updateData);
 	} catch (error) {
 		console.error("Failed to update holiday status:", error);
 	}
+});
+
+editDayScheduleBtn.addEventListener("click", () => {
+	openOverrideModal(selectedDate);
 });
 
 // --- DATA INITIALIZATION ---
@@ -173,13 +157,14 @@ function initializeUserData() {
 	const userId = currentUser.uid;
 	const userDocPath = `artifacts/${appId}/users/${userId}`;
 
-	semesterDocRef = doc(db, userDocPath, "semester", "data");
-	attendanceDocRef = doc(db, userDocPath, "attendance", "data");
+	// Use v8 compat syntax for doc references
+	semesterDocRef = db.doc(`${userDocPath}/semester/data`);
+	attendanceDocRef = db.doc(`${userDocPath}/attendance/data`);
 
-	unsubscribeSemester = onSnapshot(
-		semesterDocRef,
+	// Use v8 compat syntax for onSnapshot
+	unsubscribeSemester = semesterDocRef.onSnapshot(
 		(doc) => {
-			if (doc.exists()) {
+			if (doc.exists) {
 				semesterData = doc.data();
 				if (!unsubscribeAttendance) {
 					listenForAttendance();
@@ -199,10 +184,11 @@ function initializeUserData() {
 }
 
 function listenForAttendance() {
-	unsubscribeAttendance = onSnapshot(
-		attendanceDocRef,
+	unsubscribeAttendance = attendanceDocRef.onSnapshot(
 		(doc) => {
-			attendanceData = doc.exists() ? doc.data() : { holidays: {} };
+			attendanceData = doc.exists
+				? doc.data()
+				: { holidays: {}, overrides: {} };
 			if (semesterData) {
 				renderDashboard();
 			}
@@ -222,7 +208,6 @@ setupForm.addEventListener("submit", async (e) => {
 		.map((s) => s.trim())
 		.filter(Boolean);
 
-	// Get selected weekend days
 	const weekendDays = [];
 	document
 		.querySelectorAll(".weekend-checkbox:checked")
@@ -249,7 +234,6 @@ setupForm.addEventListener("submit", async (e) => {
 		parseISO(endDate),
 		"MMM yyyy"
 	)}`;
-
 	const newSemesterData = {
 		startDate,
 		endDate,
@@ -260,10 +244,10 @@ setupForm.addEventListener("submit", async (e) => {
 	};
 
 	try {
-		await setDoc(semesterDocRef, newSemesterData);
-		if (!attendanceData || Object.keys(attendanceData).length === 0) {
-			await setDoc(attendanceDocRef, { holidays: {} });
-		}
+		// Use v8 compat set method
+		await semesterDocRef.set(newSemesterData);
+		// Reset attendance data when semester is new/edited to clear old overrides
+		await attendanceDocRef.set({ holidays: {}, overrides: {} });
 	} catch (error) {
 		console.error("Error saving semester:", error);
 		alert("Failed to save semester settings.");
@@ -275,16 +259,15 @@ editSemesterBtn.addEventListener("click", () => {
 	showView("setup-view");
 });
 
-// --- RENDERING FUNCTIONS ---
+// --- RENDERING FUNCTIONS (No Firebase changes needed below this line) ---
 function renderSetupForm(data = {}) {
 	document.getElementById("start-date").value = data.startDate || "";
 	document.getElementById("end-date").value = data.endDate || "";
 	const subjects = data.subjects || [];
 	document.getElementById("subjects").value = subjects.join(", ");
 
-	// Render weekend checkboxes
 	const weekendContainer = document.getElementById("weekend-container");
-	const savedWeekends = data.weekendDays || [0, 6]; // Default Sunday and Saturday
+	const savedWeekends = data.weekendDays || [0, 6];
 	weekendContainer.innerHTML = "";
 	daysOfWeek.forEach((day, index) => {
 		const isChecked = savedWeekends.includes(index);
@@ -316,7 +299,7 @@ function renderSetupForm(data = {}) {
 		scheduleContainer.innerHTML = "";
 		if (currentSubjects.length > 0) {
 			daysOfWeek.forEach((day, index) => {
-				if (selectedWeekendDays.includes(index)) return; // Skip weekends
+				if (selectedWeekendDays.includes(index)) return;
 				let dayHtml = `<div class="p-3 bg-gray-50 rounded-lg"><p class="font-semibold mb-2">${day}</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
 				currentSubjects.forEach((subject) => {
 					const value = data.schedule?.[day]?.[subject] || 0;
@@ -370,6 +353,7 @@ function renderLecturesForDate(dateToRender) {
 			"lectures-container"
 		).innerHTML = `<p class="text-gray-500 text-center p-4">${message}</p>`;
 		markDayLeaveBtn.disabled = true;
+		editDayScheduleBtn.disabled = true;
 		holidayBtn.textContent = isHoliday
 			? "Unmark Holiday"
 			: "Mark as Holiday";
@@ -378,11 +362,17 @@ function renderLecturesForDate(dateToRender) {
 	}
 
 	markDayLeaveBtn.disabled = isFutureDate;
+	editDayScheduleBtn.disabled = isFutureDate;
 	holidayBtn.textContent = "Mark as Holiday";
 	holidayBtn.disabled = isFutureDate;
 
 	const dayName = daysOfWeek[dayOfWeek];
-	const scheduleForDay = semesterData.schedule[dayName] || {};
+	// Check for an override schedule first, then fall back to the default semester schedule
+	const scheduleForDay =
+		attendanceData.overrides?.[dateStr] ??
+		semesterData.schedule[dayName] ??
+		{};
+
 	const lecturesContainer = document.getElementById("lectures-container");
 	lecturesContainer.innerHTML = "";
 
@@ -416,7 +406,6 @@ function renderLecturesForDate(dateToRender) {
 	});
 }
 
-// --- CORE LOGIC: ATTENDANCE CALCULATION ---
 function calculateAndDisplayStats() {
 	const today = new Date();
 	const start = parseISO(semesterData.startDate);
@@ -453,9 +442,14 @@ function calculateAndDisplayStats() {
 			getMonth(day) === getMonth(today) &&
 			getYear(day) === getYear(today);
 
+		// Use override schedule if it exists for calculation
+		const scheduleForDay =
+			attendanceData.overrides?.[dayStr] ??
+			semesterData.schedule[dayName] ??
+			{};
+
 		semesterData.subjects.forEach((subject) => {
-			const lecturesToday =
-				semesterData.schedule[dayName]?.[subject] || 0;
+			const lecturesToday = scheduleForDay[subject] || 0;
 			for (let i = 1; i <= lecturesToday; i++) {
 				const lectureId = `${subject}-${i}`;
 				stats.overall.total++;
@@ -559,7 +553,11 @@ function getTotalLecturesInInterval(interval, specificSubject = null) {
 			return;
 
 		const dayName = daysOfWeek[dayOfWeek];
-		const daySchedule = semesterData.schedule[dayName] || {};
+		// Use override schedule if it exists for calculation
+		const daySchedule =
+			attendanceData.overrides?.[dayStr] ??
+			semesterData.schedule[dayName] ??
+			{};
 		if (specificSubject) {
 			totalLectures += daySchedule[specificSubject] || 0;
 		} else {
@@ -580,7 +578,8 @@ async function handleAttendanceChange(event) {
 
 	const fieldPath = `${date}.${lectureId}`;
 	try {
-		await updateDoc(attendanceDocRef, { [fieldPath]: status });
+		// Use v8 compat update method
+		await attendanceDocRef.update({ [fieldPath]: status });
 	} catch (error) {
 		console.error("Failed to update attendance:", error);
 		checkbox.checked = !checkbox.checked;
@@ -601,7 +600,11 @@ async function markDayAsLeave() {
 	if ((semesterData.weekendDays || [0, 6]).includes(dayOfWeek)) return;
 
 	const dayName = daysOfWeek[dayOfWeek];
-	const scheduleForDay = semesterData.schedule[dayName] || {};
+	// Check for an override schedule first to mark the correct number of lectures
+	const scheduleForDay =
+		attendanceData.overrides?.[dateStr] ??
+		semesterData.schedule[dayName] ??
+		{};
 
 	const updates = {};
 	semesterData.subjects.forEach((subject) => {
@@ -614,7 +617,7 @@ async function markDayAsLeave() {
 
 	if (Object.keys(updates).length > 0) {
 		try {
-			await updateDoc(attendanceDocRef, updates);
+			await attendanceDocRef.update(updates);
 		} catch (error) {
 			console.error("Failed to mark day as leave:", error);
 		}
@@ -647,6 +650,84 @@ modalConfirmBtn.addEventListener("click", () => {
 		confirmCallback();
 	}
 	hideModal();
+});
+
+// --- OVERRIDE SCHEDULE MODAL LOGIC ---
+const overrideModal = document.getElementById("override-schedule-modal");
+const overrideModalTitle = document.getElementById("override-modal-title");
+const overrideScheduleContainer = document.getElementById(
+	"override-schedule-container"
+);
+const overrideCancelBtn = document.getElementById("override-modal-cancel-btn");
+const overrideSaveBtn = document.getElementById("override-modal-save-btn");
+
+let overrideDate = null;
+
+function openOverrideModal(date) {
+	overrideDate = date;
+	const dateStr = format(date, "yyyy-MM-dd");
+	const dayName = daysOfWeek[getDay(date)];
+
+	overrideModalTitle.textContent = `Edit Schedule for ${format(
+		date,
+		"do MMMM yyyy"
+	)}`;
+
+	// Determine the current schedule for this day (override or default)
+	const currentSchedule =
+		attendanceData.overrides?.[dateStr] ??
+		semesterData.schedule[dayName] ??
+		{};
+
+	overrideScheduleContainer.innerHTML = "";
+	semesterData.subjects.forEach((subject) => {
+		const value = currentSchedule[subject] || 0;
+		overrideScheduleContainer.innerHTML += `
+            <div class="grid grid-cols-3 items-center gap-2">
+                <label for="override-${subject}" class="block text-sm font-medium text-gray-700 col-span-2">${subject}</label>
+                <input type="number" id="override-${subject}" value="${value}" min="0" class="w-full rounded-md border-gray-300 shadow-sm text-sm">
+            </div>
+        `;
+	});
+
+	overrideModal.classList.remove("hidden");
+}
+
+function closeOverrideModal() {
+	overrideModal.classList.add("hidden");
+	overrideDate = null;
+}
+
+overrideCancelBtn.addEventListener("click", closeOverrideModal);
+
+overrideSaveBtn.addEventListener("click", async () => {
+	if (!overrideDate) return;
+	const dateStr = format(overrideDate, "yyyy-MM-dd");
+	const fieldPath = `overrides.${dateStr}`;
+
+	const newSchedule = {};
+	let totalLectures = 0;
+	semesterData.subjects.forEach((subject) => {
+		const input = document.getElementById(`override-${subject}`);
+		const value = parseInt(input.value) || 0;
+		newSchedule[subject] = value;
+		totalLectures += value;
+	});
+
+	try {
+		if (totalLectures === 0) {
+			// If all lectures are set to 0, it's like a holiday, so we remove the override
+			await attendanceDocRef.update({
+				[fieldPath]: firebase.firestore.FieldValue.delete(),
+			});
+		} else {
+			await attendanceDocRef.update({ [fieldPath]: newSchedule });
+		}
+	} catch (error) {
+		console.error("Failed to save override schedule:", error);
+	}
+
+	closeOverrideModal();
 });
 
 // --- PWA SERVICE WORKER ---

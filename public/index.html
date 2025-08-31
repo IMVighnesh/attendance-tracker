@@ -2,19 +2,48 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale-1.0" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Attendance Tracker</title>
 		<script src="https://cdn.tailwindcss.com"></script>
+
+		<!-- Import Inter font from Google Fonts -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+
+		<!-- Configure Tailwind CSS to use the Inter font -->
+		<script>
+			tailwind.config = {
+				theme: {
+					extend: {
+						fontFamily: {
+							sans: ["Inter", "sans-serif"],
+						},
+					},
+				},
+			};
+		</script>
+
 		<link rel="stylesheet" href="style.css" />
 		<link rel="manifest" href="manifest.json" />
-		<link rel="apple-touch-icon" href="images/icon-192x192.png" />
-		<meta name="theme-color" content="#ffffff" />
+		<link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+		<meta name="theme-color" content="#4F46E5" />
+		<style>
+			.view {
+				display: none;
+			}
+			.view.active {
+				display: block;
+			}
+		</style>
 	</head>
 	<body class="bg-gray-100 font-sans">
-		<div id="app-container" class="max-w-4xl mx-auto p-4 sm:p-6">
-			<!-- Header -->
+		<div id="app-container" class="max-w-4xl mx-auto p-4 md:p-6">
 			<header class="flex justify-between items-center mb-6">
-				<h1 class="text-2xl sm:text-3xl font-bold text-gray-800">
+				<h1 class="text-2xl md:text-3xl font-bold text-gray-800">
 					Attendance Tracker
 				</h1>
 				<div id="user-info" class="hidden items-center gap-3">
@@ -25,7 +54,7 @@
 					/>
 					<button
 						id="logout-btn"
-						class="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors text-sm"
+						class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
 					>
 						Logout
 					</button>
@@ -34,60 +63,63 @@
 
 			<main>
 				<!-- Login View -->
-				<div id="login-view" class="view active text-center py-10">
+				<div id="login-view" class="view active text-center py-12">
 					<div
 						class="bg-white p-8 rounded-xl shadow-md max-w-sm mx-auto"
 					>
-						<h2 class="text-2xl font-bold mb-2 text-gray-700">
+						<h2 class="text-xl font-semibold text-gray-700 mb-2">
 							Welcome!
 						</h2>
 						<p class="text-gray-500 mb-6">
-							Sign in to track your attendance.
+							Please log in with your Google account to track your
+							attendance.
 						</p>
 						<button
 							id="login-btn"
-							class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
+							class="w-full flex items-center justify-center gap-3 px-4 py-3 font-semibold text-white bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
 						>
 							<svg
-								class="w-6 h-6"
-								xmlns="http://www.w3.org/2000/svg"
+								class="w-5 h-5"
 								viewBox="0 0 48 48"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
 							>
 								<path
+									d="M43.6113 20.0833H42V20H24V28H35.3033C33.655 31.64 30.0733 34 24 34C17.455 34 12 28.545 12 22C12 15.455 17.455 10 24 10C27.3017 10 30.245 11.3367 32.4783 13.4517L38.4983 7.43167C34.6233 3.87333 29.71 2 24 2C13.51 2 5 10.51 5 21C5 31.49 13.51 40 24 40C34.49 40 43 31.49 43 21C43 20.5333 42.9467 20.0833 42.8867 19.6417L43.6113 20.0833Z"
 									fill="#FFC107"
-									d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
 								/>
 								<path
+									d="M6.30667 14.6917L12.4783 19.2367C13.8417 15.6367 16.73 13 20.2433 11.5217L14.2217 5.50167C10.84 8.24333 8.01333 11.83 6.30667 14.6917Z"
 									fill="#FF3D00"
-									d="M6.306 14.691c-1.321 2.352-2.096 5.09-2.096 8.016s.775 5.664 2.096 8.016l-5.657 5.657C.138 32.65 0 28.485 0 24c0-4.486.138-8.65.95-12.348l5.356 2.043z"
 								/>
 								<path
-									fill="#4CAF50"
-									d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-5.657-5.657C30.046 38.023 27.21 39 24 39c-5.218 0-9.657-3.356-11.303-7.962l-5.657 5.657C9.043 42.023 15.957 48 24 48z"
-								/>
+									d="M24 48C37.255 48 48 37.255 48 24C48 10.745 37.255 0 24 0C10.745 0 0 10.745 0 24C0 37.255 10.745 48 24 48Z"
+									fill="url(#paint0_linear)"
+								></path>
 								<path
-									fill="#1976D2"
-									d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l5.657 5.657C39.833 34.61 44 29.873 44 24c0-1.341-.138-2.65-.389-3.917z"
+									d="M43.6113 20.0833H42V20H24V28H35.3033C33.655 31.64 30.0733 34 24 34C17.455 34 12 28.545 12 22C12 15.455 17.455 10 24 10C27.3017 10 30.245 11.3367 32.4783 13.4517L38.4983 7.43167C34.6233 3.87333 29.71 2 24 2C13.51 2 5 10.51 5 21C5 31.49 13.51 40 24 40C34.49 40 43 31.49 43 21C43 20.5333 42.9467 20.0833 42.8867 19.6417L43.6113 20.0833Z"
+									fill="white"
 								/>
 							</svg>
-							Sign In with Google
+							Sign in with Google
 						</button>
 					</div>
 				</div>
 
 				<!-- Loader View -->
-				<div id="loader-view" class="view text-center py-20">
+				<div id="loader-view" class="view text-center py-12">
 					<div class="loader"></div>
+					<p class="mt-4 text-gray-600">Loading your data...</p>
 				</div>
 
 				<!-- Setup View -->
 				<div id="setup-view" class="view">
-					<div class="bg-white p-6 rounded-xl shadow-md">
-						<h2 class="text-2xl font-bold mb-4 text-gray-800">
+					<div class="bg-white p-6 md:p-8 rounded-xl shadow-md">
+						<h2 class="text-xl font-semibold text-gray-800 mb-4">
 							Semester Setup
 						</h2>
-						<form id="setup-form" class="space-y-6">
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<form id="setup-form" class="space-y-4">
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
 									<label
 										for="start-date"
@@ -98,7 +130,7 @@
 										type="date"
 										id="start-date"
 										required
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
 									/>
 								</div>
 								<div>
@@ -111,7 +143,7 @@
 										type="date"
 										id="end-date"
 										required
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
 									/>
 								</div>
 							</div>
@@ -124,41 +156,37 @@
 								<input
 									type="text"
 									id="subjects"
-									placeholder="e.g., Physics, Maths, Chemistry"
+									placeholder="e.g., Maths, Physics, Chemistry"
 									required
-									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
 								/>
 							</div>
-
-							<!-- NEW: Weekend Configuration -->
 							<div>
-								<h3
-									class="text-lg font-medium text-gray-800 mb-2"
+								<label
+									class="block text-sm font-medium text-gray-700 mb-2"
+									>Select Weekend Days</label
 								>
-									Weekend Configuration
-								</h3>
 								<div
 									id="weekend-container"
 									class="flex flex-wrap gap-x-4 gap-y-2"
 								>
-									<!-- Weekend checkboxes will be generated here -->
+									<!-- Weekend checkboxes will be rendered here -->
 								</div>
 							</div>
-
 							<div>
 								<h3
 									class="text-lg font-medium text-gray-800 mb-2"
 								>
-									Weekly Schedule
+									Daily Lecture Schedule
 								</h3>
 								<div id="schedule-container" class="space-y-3">
-									<!-- Schedule inputs will be generated here -->
+									<!-- Schedule inputs will be rendered here -->
 								</div>
 							</div>
 							<div class="text-right">
 								<button
 									type="submit"
-									class="px-6 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors"
+									class="px-6 py-2 font-semibold text-white bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
 								>
 									Save Settings
 								</button>
@@ -168,152 +196,184 @@
 				</div>
 
 				<!-- Dashboard View -->
-				<div id="dashboard-view" class="view space-y-6">
-					<div class="bg-white p-6 rounded-xl shadow-md">
+				<div id="dashboard-view" class="view">
+					<div class="bg-white p-6 md:p-8 rounded-xl shadow-md mb-6">
 						<div
-							class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4"
+							class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"
 						>
 							<div>
-								<h2 class="text-2xl font-bold text-gray-800">
-									Dashboard
-								</h2>
-								<p
+								<h2
+									class="text-xl font-bold text-gray-800"
 									id="semester-name"
-									class="text-sm text-gray-500"
-								></p>
+								></h2>
+								<p class="text-gray-500">
+									Overall Attendance:
+									<span
+										id="overall-attendance-percent"
+										class="font-semibold"
+									></span>
+								</p>
+							</div>
+							<div class="flex items-center gap-2 text-sm">
+								<div
+									class="p-3 rounded-lg bg-green-50 border border-green-200 text-center"
+								>
+									<p
+										class="font-bold text-lg text-green-700"
+										id="semester-bunks-left"
+									></p>
+									<p class="text-green-600">
+										Semester Bunks Left
+									</p>
+								</div>
+								<div
+									class="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center"
+								>
+									<p
+										class="font-bold text-lg text-blue-700"
+										id="monthly-bunks-left"
+									></p>
+									<p class="text-blue-600">
+										Monthly Bunks Left
+									</p>
+								</div>
 							</div>
 							<button
 								id="edit-semester-btn"
-								class="text-sm px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+								class="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 rounded-lg hover:bg-indigo-200"
 							>
 								Edit Semester
 							</button>
 						</div>
-
 						<div
-							class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center"
+							id="subject-stats-container"
+							class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
 						>
-							<div class="p-4 bg-blue-50 rounded-lg">
-								<p class="text-sm text-blue-800">
-									Overall Attendance
-								</p>
-								<p
-									id="overall-attendance-percent"
-									class="text-2xl font-bold text-blue-900"
-								>
-									--%
-								</p>
-							</div>
-							<div class="p-4 bg-green-50 rounded-lg">
-								<p class="text-sm text-green-800">
-									Semester Bunks Left
-								</p>
-								<p
-									id="semester-bunks-left"
-									class="text-2xl font-bold text-green-900"
-								>
-									--
-								</p>
-							</div>
-							<div class="p-4 bg-yellow-50 rounded-lg">
-								<p class="text-sm text-yellow-800">
-									Monthly Bunks Left
-								</p>
-								<p
-									id="monthly-bunks-left"
-									class="text-2xl font-bold text-yellow-900"
-								>
-									--
-								</p>
-							</div>
+							<!-- Subject stats will be rendered here -->
 						</div>
 					</div>
 
-					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div class="bg-white p-6 md:p-8 rounded-xl shadow-md">
 						<div
-							class="bg-white p-6 rounded-xl shadow-md space-y-4"
+							class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3"
 						>
-							<div
-								class="flex flex-col sm:flex-row justify-between sm:items-center gap-2"
-							>
-								<h3 class="text-xl font-bold text-gray-800">
-									Daily Attendance
-								</h3>
-								<div class="flex items-center gap-2">
-									<button
-										id="prev-day-btn"
-										class="p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
-										aria-label="Previous day"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											width="16"
-											height="16"
-											fill="currentColor"
-											viewBox="0 0 16 16"
-										>
-											<path
-												fill-rule="evenodd"
-												d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"
-											/>
-										</svg>
-									</button>
-									<input
-										type="date"
-										id="date-picker"
-										class="border-gray-300 rounded-md shadow-sm text-sm p-1.5 bg-gray-50"
-									/>
-									<button
-										id="next-day-btn"
-										class="p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
-										aria-label="Next day"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											width="16"
-											height="16"
-											fill="currentColor"
-											viewBox="0 0 16 16"
-										>
-											<path
-												fill-rule="evenodd"
-												d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
-											/>
-										</svg>
-									</button>
-								</div>
+							<div class="flex items-center gap-2">
+								<button
+									id="prev-day-btn"
+									class="p-2 rounded-full hover:bg-gray-200"
+								>
+									&lt;
+								</button>
+								<input
+									type="date"
+									id="date-picker"
+									class="border-gray-300 rounded-md shadow-sm"
+								/>
+								<button
+									id="next-day-btn"
+									class="p-2 rounded-full hover:bg-gray-200"
+								>
+									&gt;
+								</button>
 							</div>
-							<div
-								id="lectures-container"
-								class="space-y-3 max-h-96 overflow-y-auto pr-2"
-							>
-								<!-- Lectures will be generated here -->
-							</div>
-							<!-- NEW: Holiday and Leave Buttons -->
-							<div class="grid grid-cols-2 gap-3 mt-2">
+							<div class="flex flex-wrap gap-2 justify-center">
+								<button
+									id="edit-day-schedule-btn"
+									class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+								>
+									Edit Schedule
+								</button>
 								<button
 									id="holiday-btn"
-									class="w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-semibold"
+									class="px-4 py-2 text-sm font-medium text-yellow-800 bg-yellow-100 rounded-lg hover:bg-yellow-200"
 								>
 									Mark as Holiday
 								</button>
 								<button
 									id="mark-day-leave-btn"
-									class="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-semibold"
+									class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
 								>
-									Mark as Leave
+									Mark Day as Leave
 								</button>
 							</div>
 						</div>
+						<div id="lectures-container" class="space-y-3">
+							<!-- Lectures for the selected day will be rendered here -->
+						</div>
+					</div>
+				</div>
 
-						<div
-							class="bg-white p-6 rounded-xl shadow-md space-y-4"
-						>
-							<h3 class="text-xl font-bold text-gray-800">
-								Subject-wise Stats
+				<!-- Confirmation Modal -->
+				<div
+					id="confirmation-modal"
+					class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+				>
+					<div
+						class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+					>
+						<div class="mt-3 text-center">
+							<h3
+								class="text-lg leading-6 font-medium text-gray-900"
+								id="modal-title"
+							></h3>
+							<div class="mt-2 px-7 py-3">
+								<p
+									class="text-sm text-gray-500"
+									id="modal-message"
+								></p>
+							</div>
+							<div class="items-center px-4 py-3">
+								<button
+									id="modal-cancel-btn"
+									class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 mr-2"
+								>
+									Cancel
+								</button>
+								<button
+									id="modal-confirm-btn"
+									class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+								>
+									Confirm
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Override Schedule Modal -->
+				<div
+					id="override-schedule-modal"
+					class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+				>
+					<div
+						class="relative top-10 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"
+					>
+						<div class="mt-3">
+							<h3
+								class="text-lg leading-6 font-medium text-gray-900 text-center"
+								id="override-modal-title"
+							>
+								Edit Schedule
 							</h3>
-							<div id="subject-stats-container" class="space-y-4">
-								<!-- Subject stats will be generated here -->
+							<div
+								class="mt-4 px-2 py-3 space-y-4"
+								id="override-schedule-container"
+							>
+								<!-- Override schedule inputs will be rendered here -->
+							</div>
+							<div class="items-center px-4 py-3 sm:flex">
+								<button
+									id="override-modal-cancel-btn"
+									class="w-full inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white text-base leading-6 font-medium text-gray-700 shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue transition ease-in-out duration-150 sm:text-sm sm:leading-5"
+								>
+									Cancel
+								</button>
+								<button
+									id="override-modal-save-btn"
+									class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent px-4 py-2 bg-indigo-600 text-base leading-6 font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:border-indigo-700 focus:shadow-outline-indigo transition ease-in-out duration-150 sm:mt-0 sm:ml-3 sm:text-sm sm:leading-5"
+								>
+									Save Schedule
+								</button>
 							</div>
 						</div>
 					</div>
@@ -321,35 +381,16 @@
 			</main>
 		</div>
 
-		<!-- Confirmation Modal -->
-		<div
-			id="confirmation-modal"
-			class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-		>
-			<div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-				<h3 id="modal-title" class="text-lg font-bold text-gray-800">
-					Confirmation
-				</h3>
-				<p id="modal-message" class="text-sm text-gray-600 mt-2">
-					Are you sure?
-				</p>
-				<div class="mt-6 flex justify-end gap-3">
-					<button
-						id="modal-cancel-btn"
-						class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-					>
-						Cancel
-					</button>
-					<button
-						id="modal-confirm-btn"
-						class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-					>
-						Confirm
-					</button>
-				</div>
-			</div>
-		</div>
+		<!-- Load Firebase SDKs first -->
+		<!-- These are the "compat" libraries that work with the init.js script -->
+		<script src="/__/firebase/9.6.1/firebase-app-compat.js"></script>
+		<script src="/__/firebase/9.6.1/firebase-auth-compat.js"></script>
+		<script src="/__/firebase/9.6.1/firebase-firestore-compat.js"></script>
 
+		<!-- This script is auto-generated by Firebase Hosting and initializes Firebase -->
+		<script src="/__/firebase/init.js"></script>
+
+		<!-- Your app's logic, loaded last -->
 		<script type="module" src="script.js"></script>
 	</body>
 </html>
