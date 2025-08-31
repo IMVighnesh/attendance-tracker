@@ -17,6 +17,7 @@ import {
 	setDoc,
 	onSnapshot,
 	updateDoc,
+	deleteField,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // date-fns for easy date manipulation
@@ -30,11 +31,14 @@ import {
 	isWithinInterval,
 	startOfMonth,
 	endOfMonth,
+	addDays,
+	subDays,
+	isToday,
+	isBefore,
+	isAfter,
 } from "https://cdn.jsdelivr.net/npm/date-fns@2.29.3/esm/index.js";
 
 // --- PRE-DEFINED VARIABLES (DO NOT MODIFY) ---
-// These variables are placeholders that will be replaced by the environment when you deploy.
-// IMPORTANT: Paste your actual Firebase config object here!
 const firebaseConfig = {
 	apiKey: "AIzaSyAODkLttfUkwSSUik7efk83oXjF4KwBf5Q",
 	authDomain: "attendance-tracker-basic.firebaseapp.com",
@@ -48,24 +52,21 @@ const appId =
 	typeof __app_id !== "undefined" ? __app_id : "default-attendance-app";
 
 // --- FIREBASE INITIALIZATION ---
-// This is the core setup for connecting to your Firebase backend.
 let app, auth, db;
 try {
 	app = initializeApp(firebaseConfig);
 	auth = getAuth(app);
 	db = getFirestore(app);
-	// This makes sure the user stays logged in even after closing the browser tab.
 	setPersistence(auth, browserLocalPersistence);
 } catch (error) {
 	console.error("Firebase initialization failed:", error);
-	// You might want to show an error message to the user here.
 }
 
 // --- GLOBAL STATE ---
-// We'll store the current user's data and app state here.
 let currentUser = null;
 let semesterData = null;
 let attendanceData = {};
+let selectedDate = new Date();
 let semesterDocRef = null;
 let attendanceDocRef = null;
 let unsubscribeSemester = null;
@@ -81,7 +82,6 @@ const daysOfWeek = [
 ];
 
 // --- DOM ELEMENTS ---
-// Caching references to DOM elements for performance.
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
@@ -89,9 +89,12 @@ const userPhoto = document.getElementById("user-photo");
 const setupForm = document.getElementById("setup-form");
 const editSemesterBtn = document.getElementById("edit-semester-btn");
 const markDayLeaveBtn = document.getElementById("mark-day-leave-btn");
+const holidayBtn = document.getElementById("holiday-btn");
+const datePicker = document.getElementById("date-picker");
+const prevDayBtn = document.getElementById("prev-day-btn");
+const nextDayBtn = document.getElementById("next-day-btn");
 
 // --- UI VIEW MANAGEMENT ---
-// A helper function to switch between different screens of the app.
 const views = document.querySelectorAll(".view");
 function showView(viewId) {
 	views.forEach((view) => view.classList.remove("active"));
@@ -99,7 +102,6 @@ function showView(viewId) {
 }
 
 // --- AUTHENTICATION LOGIC ---
-// This handles user login, logout, and checks the authentication state.
 const provider = new GoogleAuthProvider();
 loginBtn.addEventListener("click", () => {
 	signInWithPopup(auth, provider).catch((error) =>
@@ -115,52 +117,84 @@ logoutBtn.addEventListener("click", () => {
 
 onAuthStateChanged(auth, (user) => {
 	if (user) {
-		// User is signed in.
 		currentUser = user;
 		userInfo.classList.remove("hidden");
 		userInfo.classList.add("flex");
 		userPhoto.src = user.photoURL;
 		initializeUserData();
 	} else {
-		// User is signed out.
 		currentUser = null;
 		semesterData = null;
 		attendanceData = {};
+		selectedDate = new Date();
 		userInfo.classList.add("hidden");
 		showView("login-view");
 	}
 });
 
+// --- DATE NAVIGATION & HOLIDAY LOGIC ---
+prevDayBtn.addEventListener("click", () => {
+	selectedDate = subDays(selectedDate, 1);
+	renderDashboard();
+});
+
+nextDayBtn.addEventListener("click", () => {
+	selectedDate = addDays(selectedDate, 1);
+	renderDashboard();
+});
+
+datePicker.addEventListener("change", (e) => {
+	const [year, month, day] = e.target.value.split("-").map(Number);
+	selectedDate = new Date(year, month - 1, day);
+	renderDashboard();
+});
+
+holidayBtn.addEventListener("click", async () => {
+	const dateStr = format(selectedDate, "yyyy-MM-dd");
+	const isHoliday = attendanceData.holidays?.[dateStr] === true;
+	const fieldPath = `holidays.${dateStr}`;
+
+	try {
+		if (isHoliday) {
+			// Unmark as holiday by deleting the field
+			await updateDoc(attendanceDocRef, { [fieldPath]: deleteField() });
+		} else {
+			// Mark as holiday
+			await updateDoc(attendanceDocRef, { [fieldPath]: true });
+		}
+	} catch (error) {
+		console.error("Failed to update holiday status:", error);
+	}
+});
+
 // --- DATA INITIALIZATION ---
-// This function is called after a user logs in. It sets up database references and listeners.
 function initializeUserData() {
 	showView("loader-view");
 	const userId = currentUser.uid;
-
-	// Paths for our data in Firestore. Storing user-specific data under their UID is a standard security practice.
 	const userDocPath = `artifacts/${appId}/users/${userId}`;
-	semesterDocRef = doc(db, userDocPath, "semester");
-	attendanceDocRef = doc(db, userDocPath, "attendance");
 
-	// Set up real-time listeners. These automatically update the app when data changes in the database.
+	semesterDocRef = doc(db, userDocPath, "semester", "data");
+	attendanceDocRef = doc(db, userDocPath, "attendance", "data");
+
 	unsubscribeSemester = onSnapshot(
 		semesterDocRef,
 		(doc) => {
 			if (doc.exists()) {
 				semesterData = doc.data();
-				// Once we have semester data, we listen for attendance.
 				if (!unsubscribeAttendance) {
 					listenForAttendance();
 				}
-				renderDashboard();
 				showView("dashboard-view");
+				renderDashboard();
 			} else {
-				// If no semester is set up, show the setup screen.
-				renderSetupForm();
 				showView("setup-view");
+				renderSetupForm();
 			}
 		},
-		(error) => console.error("Error listening to semester:", error)
+		(error) => {
+			console.error("Error listening to semester:", error);
+			showView("login-view");
+		}
 	);
 }
 
@@ -168,9 +202,9 @@ function listenForAttendance() {
 	unsubscribeAttendance = onSnapshot(
 		attendanceDocRef,
 		(doc) => {
-			attendanceData = doc.exists() ? doc.data() : {};
+			attendanceData = doc.exists() ? doc.data() : { holidays: {} };
 			if (semesterData) {
-				renderDashboard(); // Re-render dashboard with new attendance data
+				renderDashboard();
 			}
 		},
 		(error) => console.error("Error listening to attendance:", error)
@@ -188,9 +222,17 @@ setupForm.addEventListener("submit", async (e) => {
 		.map((s) => s.trim())
 		.filter(Boolean);
 
+	// Get selected weekend days
+	const weekendDays = [];
+	document
+		.querySelectorAll(".weekend-checkbox:checked")
+		.forEach((checkbox) => {
+			weekendDays.push(parseInt(checkbox.value));
+		});
+
 	const schedule = {};
-	daysOfWeek.slice(1, 6).forEach((day) => {
-		// Monday to Friday
+	const workingDays = daysOfWeek.filter((day, i) => !weekendDays.includes(i));
+	workingDays.forEach((day) => {
 		schedule[day] = {};
 		subjects.forEach((subject) => {
 			const input = document.getElementById(`schedule-${day}-${subject}`);
@@ -214,15 +256,14 @@ setupForm.addEventListener("submit", async (e) => {
 		subjects,
 		schedule,
 		name: semesterName,
+		weekendDays,
 	};
 
 	try {
 		await setDoc(semesterDocRef, newSemesterData);
-		// Also initialize the attendance document
 		if (!attendanceData || Object.keys(attendanceData).length === 0) {
-			await setDoc(attendanceDocRef, {});
+			await setDoc(attendanceDocRef, { holidays: {} });
 		}
-		// The onSnapshot listener will automatically handle the UI update.
 	} catch (error) {
 		console.error("Error saving semester:", error);
 		alert("Failed to save semester settings.");
@@ -235,16 +276,29 @@ editSemesterBtn.addEventListener("click", () => {
 });
 
 // --- RENDERING FUNCTIONS ---
-// These functions take data and build the HTML to display it.
 function renderSetupForm(data = {}) {
 	document.getElementById("start-date").value = data.startDate || "";
 	document.getElementById("end-date").value = data.endDate || "";
 	const subjects = data.subjects || [];
 	document.getElementById("subjects").value = subjects.join(", ");
 
-	const scheduleContainer = document.getElementById("schedule-container");
-	scheduleContainer.innerHTML = ""; // Clear previous content
+	// Render weekend checkboxes
+	const weekendContainer = document.getElementById("weekend-container");
+	const savedWeekends = data.weekendDays || [0, 6]; // Default Sunday and Saturday
+	weekendContainer.innerHTML = "";
+	daysOfWeek.forEach((day, index) => {
+		const isChecked = savedWeekends.includes(index);
+		weekendContainer.innerHTML += `
+            <label class="inline-flex items-center">
+                <input type="checkbox" class="weekend-checkbox rounded" value="${index}" ${
+			isChecked ? "checked" : ""
+		}>
+                <span class="ml-2 text-sm">${day}</span>
+            </label>
+        `;
+	});
 
+	const scheduleContainer = document.getElementById("schedule-container");
 	const subjectsInput = document.getElementById("subjects");
 
 	const renderSchedule = () => {
@@ -252,20 +306,21 @@ function renderSetupForm(data = {}) {
 			.split(",")
 			.map((s) => s.trim())
 			.filter(Boolean);
+		const selectedWeekendDays = [];
+		document
+			.querySelectorAll(".weekend-checkbox:checked")
+			.forEach((checkbox) => {
+				selectedWeekendDays.push(parseInt(checkbox.value));
+			});
+
 		scheduleContainer.innerHTML = "";
 		if (currentSubjects.length > 0) {
-			daysOfWeek.slice(1, 6).forEach((day) => {
-				// Monday to Friday
-				let dayHtml = `<div class="p-3 bg-gray-50 rounded-lg">
-                    <p class="font-semibold mb-2">${day}</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
+			daysOfWeek.forEach((day, index) => {
+				if (selectedWeekendDays.includes(index)) return; // Skip weekends
+				let dayHtml = `<div class="p-3 bg-gray-50 rounded-lg"><p class="font-semibold mb-2">${day}</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
 				currentSubjects.forEach((subject) => {
 					const value = data.schedule?.[day]?.[subject] || 0;
-					dayHtml += `
-                        <div>
-                            <label for="schedule-${day}-${subject}" class="block text-sm text-gray-600">${subject}</label>
-                            <input type="number" id="schedule-${day}-${subject}" value="${value}" min="0" class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm">
-                        </div>`;
+					dayHtml += `<div><label for="schedule-${day}-${subject}" class="block text-sm text-gray-600">${subject}</label><input type="number" id="schedule-${day}-${subject}" value="${value}" min="0" class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm"></div>`;
 				});
 				dayHtml += "</div></div>";
 				scheduleContainer.innerHTML += dayHtml;
@@ -273,96 +328,105 @@ function renderSetupForm(data = {}) {
 		}
 	};
 
+	document
+		.getElementById("weekend-container")
+		.addEventListener("change", renderSchedule);
 	subjectsInput.addEventListener("input", renderSchedule);
-	renderSchedule(); // Initial render
+	renderSchedule();
 }
 
 function renderDashboard() {
 	if (!semesterData) return;
 
+	const semStartDate = parseISO(semesterData.startDate);
+	const today = new Date();
+	datePicker.min = semesterData.startDate;
+	datePicker.max = format(today, "yyyy-MM-dd");
+	datePicker.value = format(selectedDate, "yyyy-MM-dd");
+
+	prevDayBtn.disabled = isBefore(selectedDate, addDays(semStartDate, 1));
+	nextDayBtn.disabled = isToday(selectedDate) || isAfter(selectedDate, today);
+
 	document.getElementById("semester-name").textContent = semesterData.name;
-	renderTodayLectures();
+	renderLecturesForDate(selectedDate);
 	calculateAndDisplayStats();
 }
 
-function renderTodayLectures() {
-	const today = new Date();
-	const todayStr = format(today, "yyyy-MM-dd");
-	document.getElementById("today-date").textContent = format(
-		today,
-		"do MMM yyyy"
-	);
+function renderLecturesForDate(dateToRender) {
+	const dateStr = format(dateToRender, "yyyy-MM-dd");
+	const dayOfWeek = getDay(dateToRender);
+	const isFutureDate =
+		isAfter(dateToRender, new Date()) && !isToday(dateToRender);
 
-	const dayOfWeek = getDay(today);
-	if (dayOfWeek === 0 || dayOfWeek === 6) {
-		// Sunday or Saturday
-		document.getElementById("today-lectures-container").innerHTML =
-			'<p class="text-gray-500">It\'s the weekend! No lectures today.</p>';
+	const weekendDays = semesterData.weekendDays || [0, 6];
+	const isWeekend = weekendDays.includes(dayOfWeek);
+	const isHoliday = attendanceData.holidays?.[dateStr] === true;
+
+	if (isWeekend || isHoliday) {
+		let message = isHoliday
+			? `This day is marked as a Holiday.`
+			: `It's the weekend! No lectures scheduled.`;
+		document.getElementById(
+			"lectures-container"
+		).innerHTML = `<p class="text-gray-500 text-center p-4">${message}</p>`;
 		markDayLeaveBtn.disabled = true;
+		holidayBtn.textContent = isHoliday
+			? "Unmark Holiday"
+			: "Mark as Holiday";
+		holidayBtn.disabled = isFutureDate;
 		return;
 	}
-	markDayLeaveBtn.disabled = false;
+
+	markDayLeaveBtn.disabled = isFutureDate;
+	holidayBtn.textContent = "Mark as Holiday";
+	holidayBtn.disabled = isFutureDate;
 
 	const dayName = daysOfWeek[dayOfWeek];
-	const scheduleForToday = semesterData.schedule[dayName];
-	const todayLecturesContainer = document.getElementById(
-		"today-lectures-container"
-	);
-	todayLecturesContainer.innerHTML = "";
+	const scheduleForDay = semesterData.schedule[dayName] || {};
+	const lecturesContainer = document.getElementById("lectures-container");
+	lecturesContainer.innerHTML = "";
 
 	let lectureCount = 0;
 	semesterData.subjects.forEach((subject) => {
-		const numLectures = scheduleForToday?.[subject] || 0;
+		const numLectures = scheduleForDay[subject] || 0;
 		for (let i = 1; i <= numLectures; i++) {
 			lectureCount++;
 			const lectureId = `${subject}-${i}`;
 			const isAttended =
-				attendanceData[todayStr]?.[lectureId] === "present";
-			const lectureHtml = `
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span class="font-medium">${subject} (Lecture ${i})</span>
-                    <label class="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" class="h-6 w-6 rounded text-blue-500 border-gray-300 focus:ring-blue-500 attendance-checkbox" 
-                            data-date="${todayStr}" data-lecture-id="${lectureId}" ${
+				attendanceData[dateStr]?.[lectureId] === "present";
+			const lectureHtml = `<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><span class="font-medium">${subject} (Lecture ${i})</span><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="h-6 w-6 rounded text-blue-500 border-gray-300 focus:ring-blue-500 attendance-checkbox" data-date="${dateStr}" data-lecture-id="${lectureId}" ${
 				isAttended ? "checked" : ""
-			}>
-                        <span class="ml-3 text-sm font-medium ${
-							isAttended ? "text-green-600" : "text-red-600"
-						}">${isAttended ? "Present" : "Absent"}</span>
-                    </label>
-                </div>
-            `;
-			todayLecturesContainer.insertAdjacentHTML("beforeend", lectureHtml);
+			} ${
+				isFutureDate ? "disabled" : ""
+			}><span class="ml-3 text-sm font-medium ${
+				isAttended ? "text-green-600" : "text-red-600"
+			}">${isAttended ? "Present" : "Absent"}</span></label></div>`;
+			lecturesContainer.insertAdjacentHTML("beforeend", lectureHtml);
 		}
 	});
 
 	if (lectureCount === 0) {
-		todayLecturesContainer.innerHTML =
-			'<p class="text-gray-500">No lectures scheduled for today.</p>';
+		lecturesContainer.innerHTML =
+			'<p class="text-gray-500 text-center p-4">No lectures scheduled for this day.</p>';
 		markDayLeaveBtn.disabled = true;
 	}
 
-	// Add event listeners to new checkboxes
 	document.querySelectorAll(".attendance-checkbox").forEach((checkbox) => {
 		checkbox.addEventListener("change", handleAttendanceChange);
 	});
 }
 
 // --- CORE LOGIC: ATTENDANCE CALCULATION ---
-// This is the brain of the app. It calculates all the stats.
 function calculateAndDisplayStats() {
 	const today = new Date();
 	const start = parseISO(semesterData.startDate);
 	const end = parseISO(semesterData.endDate);
+	const weekendDays = semesterData.weekendDays || [0, 6];
 
-	if (today < start) {
-		// Semester hasn't started
-		// TODO: Show a message
-		return;
-	}
+	if (isBefore(today, start)) return;
 
 	const allSemesterDays = eachDayOfInterval({ start, end });
-	const pastAndTodayDays = allSemesterDays.filter((d) => d <= today);
+	const pastAndTodayDays = allSemesterDays.filter((d) => !isAfter(d, today));
 
 	const stats = {
 		overall: { total: 0, attended: 0, absent: 0 },
@@ -374,13 +438,16 @@ function calculateAndDisplayStats() {
 		stats.subjects[sub] = { total: 0, attended: 0, absent: 0 };
 	});
 
-	// Calculate total and attended/absent lectures
 	pastAndTodayDays.forEach((day) => {
 		const dayOfWeek = getDay(day);
-		if (dayOfWeek === 0 || dayOfWeek === 6) return; // Skip weekends
+		const dayStr = format(day, "yyyy-MM-dd");
+		if (
+			weekendDays.includes(dayOfWeek) ||
+			attendanceData.holidays?.[dayStr]
+		)
+			return;
 
 		const dayName = daysOfWeek[dayOfWeek];
-		const dayStr = format(day, "yyyy-MM-dd");
 		const dayAttendance = attendanceData[dayStr] || {};
 		const isCurrentMonth =
 			getMonth(day) === getMonth(today) &&
@@ -400,7 +467,6 @@ function calculateAndDisplayStats() {
 					stats.subjects[subject].attended++;
 					if (isCurrentMonth) stats.monthly.attended++;
 				} else {
-					// Any lecture not marked 'present' is considered absent for past days
 					stats.overall.absent++;
 					stats.subjects[subject].absent++;
 					if (isCurrentMonth) stats.monthly.absent++;
@@ -409,10 +475,8 @@ function calculateAndDisplayStats() {
 		});
 	});
 
-	// Calculate 'Bunks Left'
 	const requiredPercentage = 0.75;
 
-	// 1. Semester Bunks
 	const totalSemesterLectures = getTotalLecturesInInterval({ start, end });
 	const requiredSemesterLectures = Math.ceil(
 		totalSemesterLectures * requiredPercentage
@@ -423,7 +487,6 @@ function calculateAndDisplayStats() {
 		maxSemesterBunks - stats.overall.absent
 	);
 
-	// 2. Monthly Bunks
 	const monthStart = startOfMonth(today);
 	const monthEnd = endOfMonth(today);
 	const totalMonthlyLectures = getTotalLecturesInInterval({
@@ -439,7 +502,6 @@ function calculateAndDisplayStats() {
 		maxMonthlyBunks - stats.monthly.absent
 	);
 
-	// --- Update UI ---
 	const overallPercent =
 		stats.overall.total > 0
 			? ((stats.overall.attended / stats.overall.total) * 100).toFixed(1)
@@ -460,7 +522,6 @@ function calculateAndDisplayStats() {
 			subStats.total > 0
 				? ((subStats.attended / subStats.total) * 100).toFixed(1)
 				: "N/A";
-
 		const totalSubLectures = getTotalLecturesInInterval(
 			{ start, end },
 			subject
@@ -470,28 +531,13 @@ function calculateAndDisplayStats() {
 		);
 		const maxSubBunks = totalSubLectures - requiredSubLectures;
 		const subBunksLeft = Math.max(0, maxSubBunks - subStats.absent);
-
 		const colorClass =
 			subPercent >= 75
 				? "bg-green-500"
 				: subPercent >= 60
 				? "bg-yellow-500"
 				: "bg-red-500";
-
-		subjectContainer.innerHTML += `
-            <div>
-                <div class="flex justify-between items-center mb-1">
-                    <span class="font-semibold">${subject}</span>
-                    <span class="text-sm font-bold">${subPercent}%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div class="${colorClass} h-2.5 rounded-full" style="width: ${subPercent}%"></div>
-                </div>
-                <div class="text-xs text-gray-500 mt-1 flex justify-between">
-                    <span>Attended: ${subStats.attended}/${subStats.total}</span>
-                    <span class="font-medium">Bunks Left: ${subBunksLeft}</span>
-                </div>
-            </div>`;
+		subjectContainer.innerHTML += `<div><div class="flex justify-between items-center mb-1"><span class="font-semibold">${subject}</span><span class="text-sm font-bold">${subPercent}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="${colorClass} h-2.5 rounded-full" style="width: ${subPercent}%"></div></div><div class="text-xs text-gray-500 mt-1 flex justify-between"><span>Attended: ${subStats.attended}/${subStats.total}</span><span class="font-medium">Bunks Left: ${subBunksLeft}</span></div></div>`;
 	});
 }
 
@@ -500,16 +546,20 @@ function getTotalLecturesInInterval(interval, specificSubject = null) {
 	const days = eachDayOfInterval(interval);
 	const semStart = parseISO(semesterData.startDate);
 	const semEnd = parseISO(semesterData.endDate);
+	const weekendDays = semesterData.weekendDays || [0, 6];
 
 	days.forEach((day) => {
 		if (!isWithinInterval(day, { start: semStart, end: semEnd })) return;
-
 		const dayOfWeek = getDay(day);
-		if (dayOfWeek === 0 || dayOfWeek === 6) return;
+		const dayStr = format(day, "yyyy-MM-dd");
+		if (
+			weekendDays.includes(dayOfWeek) ||
+			attendanceData.holidays?.[dayStr]
+		)
+			return;
 
 		const dayName = daysOfWeek[dayOfWeek];
-		const daySchedule = semesterData.schedule[dayName];
-
+		const daySchedule = semesterData.schedule[dayName] || {};
 		if (specificSubject) {
 			totalLectures += daySchedule[specificSubject] || 0;
 		} else {
@@ -528,41 +578,37 @@ async function handleAttendanceChange(event) {
 	const lectureId = checkbox.dataset.lectureId;
 	const status = checkbox.checked ? "present" : "absent";
 
-	// Firestore uses dot notation for nested fields, which is perfect here.
 	const fieldPath = `${date}.${lectureId}`;
 	try {
 		await updateDoc(attendanceDocRef, { [fieldPath]: status });
-		// The onSnapshot listener will re-calculate and re-render everything automatically.
 	} catch (error) {
 		console.error("Failed to update attendance:", error);
-		// Revert checkbox state on error
 		checkbox.checked = !checkbox.checked;
 	}
 }
 
 markDayLeaveBtn.addEventListener("click", () => {
 	showModal(
-		"Mark Day as Leave?",
-		"This will mark all of today's lectures as absent. This action can be undone by manually checking each lecture as present.",
+		`Mark ${format(selectedDate, "do MMM")} as Leave?`,
+		"This will mark all lectures for the selected day as absent. This action can be undone by manually checking each lecture as present.",
 		() => markDayAsLeave()
 	);
 });
 
 async function markDayAsLeave() {
-	const today = new Date();
-	const todayStr = format(today, "yyyy-MM-dd");
-	const dayOfWeek = getDay(today);
-	if (dayOfWeek === 0 || dayOfWeek === 6) return;
+	const dateStr = format(selectedDate, "yyyy-MM-dd");
+	const dayOfWeek = getDay(selectedDate);
+	if ((semesterData.weekendDays || [0, 6]).includes(dayOfWeek)) return;
 
 	const dayName = daysOfWeek[dayOfWeek];
-	const scheduleForToday = semesterData.schedule[dayName];
+	const scheduleForDay = semesterData.schedule[dayName] || {};
 
 	const updates = {};
 	semesterData.subjects.forEach((subject) => {
-		const numLectures = scheduleForToday[subject] || 0;
+		const numLectures = scheduleForDay[subject] || 0;
 		for (let i = 1; i <= numLectures; i++) {
 			const lectureId = `${subject}-${i}`;
-			updates[`${todayStr}.${lectureId}`] = "absent";
+			updates[`${dateStr}.${lectureId}`] = "absent";
 		}
 	});
 
@@ -604,7 +650,6 @@ modalConfirmBtn.addEventListener("click", () => {
 });
 
 // --- PWA SERVICE WORKER ---
-// This is what enables the offline capabilities.
 if ("serviceWorker" in navigator) {
 	window.addEventListener("load", () => {
 		navigator.serviceWorker
